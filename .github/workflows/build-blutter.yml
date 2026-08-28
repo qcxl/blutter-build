@@ -45,8 +45,11 @@ jobs:
         run: |
           # 目标目录: repo 根/targets/<matrix.target>/ 下放 lib/arm64-v8a/{libapp.so,libflutter.so}
           INDIR="$GITHUB_WORKSPACE/targets/${{ matrix.target }}/lib/arm64-v8a"
+          OUTDIR="$GITHUB_WORKSPACE/out/${{ matrix.target }}"
           ls -la "$INDIR"
-          python3 blutter.py "$INDIR" "$GITHUB_WORKSPACE/out/${{ matrix.target }}"
+          # 必须先建输出目录，blutter 不会自己创建多级父目录
+          mkdir -p "$OUTDIR"
+          python3 blutter.py "$INDIR" "$OUTDIR"
 
       - name: 上传分析产物 (pp.txt / objs.txt / asm / blutter_frida.js)
         uses: actions/upload-artifact@v4
