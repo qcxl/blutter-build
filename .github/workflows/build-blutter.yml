@@ -1,0 +1,66 @@
+name: Build & Analyze with blutter
+
+# 触发方式：手动 (Actions 页面 "Run workflow")，或 push 到 main
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  blutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        # 可同时跑多个标签；目前按 91探穴 的 Dart 3.6.2
+        target: [qytx_dart362]
+
+    env:
+      TARGET_DESC: ${{ matrix.target }}
+
+    steps:
+      - name: Checkout repo (包含 libapp.so + libflutter.so)
+        uses: actions/checkout@v4
+
+      - name: 安装构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git cmake ninja-build build-essential pkg-config \
+            libicu-dev libcapstone-dev python3 python3-pyelftools \
+            python3-requests python3-pip
+          cmake --version
+          gcc --version | head -1
+
+      - name: Clone blutter 源码
+        run: |
+          git clone --depth 1 https://github.com/worawit/blutter.git
+          cd blutter
+          # 首次进入会 clone dart-lang/sdk(3.6.2) 并编译 Dart VM，耗时长
+          ls blutter.py dartvm_fetch_build.py
+
+      - name: 运行 blutter 分析 libapp.so
+        working-directory: blutter
+        run: |
+          # 目标目录: repo 根/targets/<matrix.target>/ 下放 lib/arm64-v8a/{libapp.so,libflutter.so}
+          INDIR="$GITHUB_WORKSPACE/targets/${{ matrix.target }}/lib/arm64-v8a"
+          ls -la "$INDIR"
+          python3 blutter.py "$INDIR" "$GITHUB_WORKSPACE/out/${{ matrix.target }}"
+
+      - name: 上传分析产物 (pp.txt / objs.txt / asm / blutter_frida.js)
+        uses: actions/upload-artifact@v4
+        with:
+          name: blutter-out-${{ matrix.target }}
+          path: |
+            out/${{ matrix.target }}/
+          if-no-files-found: error
+
+      - name: 上传编译好的 dartvm + blutter 可执行 (便于复用,不用每次重编)
+        uses: actions/upload-artifact@v4
+        with:
+          name: blutter-bin-${{ matrix.target }}
+          path: |
+            blutter/bin/
+            blutter/packages/
+          if-no-files-found: warn
