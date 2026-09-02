@@ -13,8 +13,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 可同时跑多个标签；目前按 91探穴 的 Dart 3.6.2
-        target: [qytx_dart362]
+        # 可同时跑多个标签；红桃视频 Dart 3.8.1
+        target: [hongtao_dart381]
 
     env:
       TARGET_DESC: ${{ matrix.target }}
