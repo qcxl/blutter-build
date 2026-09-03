@@ -1,0 +1,46 @@
+name: Build blutter dartvm (by version)
+
+# 按 Dart 版本编译 dartvm + blutter 可执行，产物命名 blutter-bin-dart<ver>，
+# 与具体 App 解耦，同 Dart 版本的所有 App 可复用。不触发分析。
+
+on:
+  workflow_dispatch:
+    inputs:
+      dart_version:
+        description: 'Dart 版本 (如 3.8.1)'
+        required: true
+        default: '3.8.1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 安装构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git cmake ninja-build build-essential pkg-config \
+            libicu-dev libcapstone-dev python3 python3-pyelftools \
+            python3-requests python3-pip
+
+      - name: Clone blutter 源码
+        run: git clone --depth 1 https://github.com/worawit/blutter.git
+
+      - name: 编译 dartvm + blutter (仅编译不分析)
+        working-directory: blutter
+        run: |
+          set -eux
+          python3 ../scripts/build_blutter_only.py "${{ github.event.inputs.dart_version }}" android arm64
+
+      - name: 上传 blutter bin (按 Dart 版本命名)
+        uses: actions/upload-artifact@v4
+        with:
+          name: blutter-bin-dart${{ github.event.inputs.dart_version }}
+          path: |
+            blutter/bin/
+            blutter/packages/
+          if-no-files-found: error
